@@ -1,0 +1,112 @@
+{%- set km = ctx.knowledgeModel -%}
+{%- set replies = ctx.questionnaireReplies -%}
+
+{% set perInfChUuid = "dae7269a-8156-4116-9bff-804587aed667" %}
+{% set givenNameQUuid = "dfb7435b-04a4-47f3-966f-5184572795d3" %}
+{% set familyNameQUuid = "1f91a289-260e-468b-937a-2f047155a252" %}
+{% set genderQUuid = "a61fd1b4-4df6-408b-962d-6ef19dae8b80" %}
+{% set genderFemaleAUuid = "4d7cab76-f6ab-4593-a3e9-ca7807e0629d" %}
+{% set genderMaleAUuid = "261b9bba-bdf8-42cc-bed2-e91bd0127073" %}
+{% set genderOtherAUuid = "ec896a6f-6dab-40ab-9da7-cdddadfc8d00" %}
+
+{%- set skillsChUuid = 'bba04479-13df-4950-8d3a-5f10238cf222' -%}
+{%- set languagesQUuid = 'e0aaaca2-b69c-4215-9361-2d6fe827f18f' -%}
+{%- set languageQUuid = 'c06e991e-36dc-4d1f-bf5e-b6161780d2c9' -%}
+{%- set languageProfQUuid = 'ae30c267-00d4-4e8b-88a2-78e6226f0b0d' -%}
+{%- set languageInUuid = '221a3ac7-7119-473a-bc53-61f651c4ed5b' -%}
+
+{% set givenNamePath = [perInfChUuid, givenNameQUuid]|reply_path %}
+{% set givenName = replies[givenNamePath]|reply_str_value %}
+
+{% set familyNamePath = [perInfChUuid, familyNameQUuid]|reply_path %}
+{% set familyName = replies[familyNamePath]|reply_str_value %}
+
+{% set genderPath = [perInfChUuid, genderQUuid]|reply_path %}
+{% set gender = replies[genderPath]|reply_str_value %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+{# Given and family name #}
+{% if givenName or familyName %}
+  <h1>{{ givenName }} {{ familyName }}</h1>
+{% else %}
+  <h1 style="color: red;">Anonymous</h1>
+{% endif %}
+
+{# Gender #}
+Gender: {{ km.entities.answers[gender].label }}
+{% if gender == genderFemaleAUuid %}
+(she/her)
+{% elif gender == genderMaleAUuid %}
+(he/him)
+{% endif %}
+
+<br>
+{# Phase #}
+Phase: {{ km.entities.phases[ctx.phaseUuid].title }}
+
+{# Metric (Employability) #}
+{% set employabilityMUuid = 'b449843c-471e-43aa-97d2-cf4563e40346' %}
+{% for metricReport in ctx.report.totalReport.metrics %}
+  {% if metricReport.metricUuid == employabilityMUuid %}
+    <br>
+    Employability: {{ metricReport.measure }}
+  {% endif %}
+{% endfor %}
+
+<hr>
+
+{# Languages #}
+<h2>Languages</h2>
+
+{% set languagesPath = [skillsChUuid, languagesQUuid]|reply_path %}
+{% set languages = replies[languagesPath]|reply_items %}
+
+{% if languages|length > 0 %}
+  <ul>
+    {% for itemUuid in languages %}
+      {% set languagePath = [languagesPath, itemUuid, languageQUuid]|reply_path %}
+      {% set languageReply = replies[languagePath] %}
+      {% set languageLevelPath = [languagesPath, itemUuid, languageProfQUuid]|reply_path %}
+      {% set languageLevel = replies[languageLevelPath]|reply_str_value %}
+      {% set level = 'Unknown' %}
+      {% if languageLevel %}
+        {% set level = km.entities.answers[languageLevel].label %}
+      {% endif %}
+
+      {% if languageReply and languageReply.value.value.type == 'IntegrationType' %}
+        {% set link = km.entities.integrations[languageInUuid].itemUrl|replace('${id}', languageReply.value.value.id) %}
+        <li><a href="{{link}}" target="_blank">{{ languageReply.value.value.value }}</a> ({{level}})</li>
+      {% elif languageReply and languageReply.value.value.type == 'PlainType' %}
+        <li>{{ languageReply.value.value.value }} ({{level}})</li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{# Other skills #}
+<h2>Other skills</h2>
+
+{%- set otherSkillsQUuid = '933b61d4-1cca-4b5b-861b-2ce32f5663c9' -%}
+{%- set otherSkillsPath = [skillsChUuid, otherSkillsQUuid]|reply_path -%}
+{%- set otherSkills = replies[otherSkillsPath]|reply_items -%}
+
+<ul>
+  {% for skill in otherSkills %}
+    <li>{{ km.entities.choices[skill].label }}</li>
+  {% endfor %}
+</ul>
+
+{# DEV - comment out for released versions #}
+{#
+<h2>Dev only</h2>
+
+<pre>{{ ctx|tojson(2) }}</pre>
+#}
+
+  </body>
+</html>
